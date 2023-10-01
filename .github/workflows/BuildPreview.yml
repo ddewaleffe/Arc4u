@@ -7,16 +7,21 @@ on:
         description: 'nuget version number x.y.z.w'     
         required: false
         type: string
-        default: '6.0.14.1'
+        default: '6.0.14.3'
       nugetVersionSpecific:
         description: 'nuget version number z.w for specific packages'     
         required: false
         type: string
-        default: '6014.1'
+        default: '6014.3'
       nugetPreviewName:
         description: 'nuget preview ?'     
         required: true
         default: '-preview01'
+      nugetPackageIdPrefix:
+        description: 'NuGet PackageId prefix (include the period if necessary)'
+        required: false
+        type: string
+        default: ''
       publish:
         description: 'true or false' 
         type: boolean
@@ -30,6 +35,7 @@ jobs:
       nugetVersion: ${{ github.event.inputs.nugetVersion }}
       nugetVersionSpecific: ${{ github.event.inputs.nugetVersionSpecific }}
       nugetPreviewName: ${{ github.event.inputs.nugetPreviewName }}
+      nugetPackageIdPrefix: ${{ github.event.inputs.nugetPackageIdPrefix }}
       publish: ${{ github.event.inputs.publish }}
     secrets:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

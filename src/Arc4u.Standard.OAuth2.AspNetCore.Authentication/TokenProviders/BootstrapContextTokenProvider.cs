@@ -1,26 +1,24 @@
-﻿using Arc4u.Dependency.Attribute;
-using Arc4u.OAuth2.Token;
-using Arc4u.Security.Principal;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
+using Arc4u.Dependency.Attribute;
+using Arc4u.OAuth2.Token;
+using Arc4u.Security.Principal;
 
 namespace Arc4u.OAuth2.TokenProviders;
 
 [Export(BootstrapContextTokenProvider.ProviderName, typeof(ITokenProvider))]
 public class BootstrapContextTokenProvider : ITokenProvider
 {
-    const string ProviderName = "Bootstrap";
+    public const string ProviderName = "Bootstrap";
 
-    public BootstrapContextTokenProvider(ILogger<OidcTokenProvider> logger, IApplicationContext applicationContext)
+    public BootstrapContextTokenProvider(IApplicationContext applicationContext)
     {
-        _logger = logger;
         _applicationContext = applicationContext;
     }
 
-    private readonly ILogger<OidcTokenProvider> _logger;
     private readonly IApplicationContext _applicationContext;
 
     /// <summary>
@@ -34,18 +32,20 @@ public class BootstrapContextTokenProvider : ITokenProvider
     /// <returns><see cref="TokenInfo"/></returns>
     public Task<TokenInfo> GetTokenAsync(IKeyValueSettings settings, object platformParameters)
     {
-        ArgumentNullException.ThrowIfNull(settings, nameof(settings));
+        ArgumentNullException.ThrowIfNull(settings);
 
-        ArgumentNullException.ThrowIfNull(_applicationContext.Principal, nameof(_applicationContext.Principal));
+        ArgumentNullException.ThrowIfNull(_applicationContext.Principal);
 
-        if (_applicationContext.Principal.Identity is ClaimsIdentity identity && !String.IsNullOrWhiteSpace(identity?.BootstrapContext?.ToString()))
+        if (_applicationContext.Principal.Identity is ClaimsIdentity identity && !string.IsNullOrWhiteSpace(identity?.BootstrapContext?.ToString()))
         {
             var token = identity.BootstrapContext.ToString();
 
             JwtSecurityToken jwt = new(token);
 
             if (jwt.ValidTo > DateTime.UtcNow)
+            {
                 return Task.FromResult(new TokenInfo("Bearer", token, jwt.ValidTo));
+            }
 
             throw new TimeoutException("The token provided is expired.");
         }
@@ -58,7 +58,7 @@ public class BootstrapContextTokenProvider : ITokenProvider
     /// </summary>
     /// <param name="settings"></param>
     /// <exception cref="NotImplementedException"></exception>
-    public void SignOut(IKeyValueSettings settings)
+    public ValueTask SignOutAsync(IKeyValueSettings settings, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

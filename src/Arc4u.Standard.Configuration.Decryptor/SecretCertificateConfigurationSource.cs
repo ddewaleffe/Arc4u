@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using Arc4u.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 
 namespace Arc4u.Configuration.Decryptor;
@@ -8,73 +9,25 @@ namespace Arc4u.Configuration.Decryptor;
 /// </summary>
 public class SecretCertificateConfigurationSource : IConfigurationSource
 {
-    public const string PrefixDefault = "Encrypt:";
+    public const string PrefixDefault = "Decrypt:";
     public const string SecretSectionNameDefault = "EncryptionCertificate";
 
     /// <summary>
-    /// A prefix used to detect encrypted values in a configuration.
+    /// Configure the souce with the specific options.
     /// </summary>
-    private string Prefix { get; init; }
-
-    /// <summary>
-    /// A section define in a configuration provider containing the <see cref="CertificateInfo"/> keys.
-    /// </summary>
-    private string SecretSectionName { get; init; }
-
-    /// <summary>
-    /// A certificate to use instead of reading this from a configuration provider.
-    /// </summary>
-    public X509Certificate2? Certificate { get; set; }
-
-    /// <summary>
-    /// Create a <see cref="IConfigurationSource"/> with the default prefix <see cref="PrefixDefault" and section <see cref="SecretSectionNameDefault"/>./>
-    /// </summary>
-    public SecretCertificateConfigurationSource()
+    /// <param name="options"><see cref="SecretCertificateOptions"/></param>
+    public SecretCertificateConfigurationSource(SecretCertificateOptions options)
     {
-        Prefix = PrefixDefault;
-        SecretSectionName = SecretSectionNameDefault;
+        _options = new SecretCertificateOptions
+        {
+            Prefix = options.Prefix ?? PrefixDefault,
+            SecretSectionName = options.SecretSectionName ?? SecretSectionNameDefault,
+            CertificateLoader = options.CertificateLoader ?? (options.Certificate is null ? new X509CertificateLoader(null) : null),
+            Certificate = options.Certificate,
+        };
     }
 
-    /// <summary>
-    /// Create a <see cref="IConfigurationSource"/> using the defaults.
-    /// The certificate is fetched based on the configuration with the respect of the <see cref="CertificateInfo"/>.
-    /// </summary>
-    /// <param name="prefix">The prefix to use, if null the <see cref="PrefixDefault"/> is used.</param>
-    /// <param name="secretSectionName">The section name to use, if null the <see cref="SecretSectionNameDefault"/> is used.</param>
-    /// </summary>
-    public SecretCertificateConfigurationSource(string? prefix, string? secretSectionName)
-    {
-        Prefix = prefix ?? PrefixDefault;
-        SecretSectionName = secretSectionName ?? SecretSectionNameDefault;
-    }
-
-    /// <summary>
-    /// Create a <see cref="IConfigurationSource"/> using the defaults.
-    /// The prefix use is the default <see cref="PrefixDefault"/>.
-    /// </summary>
-    /// <param name="certificate">The certificate to use for decription</param>
-    public SecretCertificateConfigurationSource(X509Certificate2 certificate)
-    {
-        Prefix = PrefixDefault;
-        Certificate = certificate;
-
-        // will be not used.
-        SecretSectionName = SecretSectionNameDefault;
-    }
-
-    /// <summary>
-    /// Create a <see cref="IConfigurationSource"/> using the defaults.
-    /// </summary>
-    /// <param name="prefix">The prefix to use</param>
-    /// <param name="certificate">The certificate to use for decription</param>
-    public SecretCertificateConfigurationSource(string prefix, X509Certificate2 certificate)
-    {
-        Prefix = prefix;
-        Certificate = certificate;
-
-        // will be not used.
-        SecretSectionName = SecretSectionNameDefault;
-    }
+    private readonly SecretCertificateOptions _options;
 
     /// <summary>
     /// Builds the <see cref="EnvironmentVariablesConfigurationProvider"/> for this source.
@@ -83,6 +36,7 @@ public class SecretCertificateConfigurationSource : IConfigurationSource
     /// <returns>A <see cref="EnvironmentVariablesConfigurationProvider"/></returns>
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {
-        return new SecretConfigurationCertificateProvider(Prefix, SecretSectionName, Certificate, builder.Build());
+
+        return new SecretConfigurationCertificateProvider(_options, builder.Build());
     }
 }

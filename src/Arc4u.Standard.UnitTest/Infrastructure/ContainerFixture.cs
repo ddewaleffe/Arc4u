@@ -10,16 +10,16 @@ using System;
 using System.Collections.Generic;
 using System.Security.Principal;
 
-namespace Arc4u.Standard.UnitTest.Infrastructure
+namespace Arc4u.UnitTest.Infrastructure
 {
     public abstract class ContainerFixture : IDisposable, IContainerFixture
     {
         public ContainerFixture()
         {
             var configuration = ConfigurationHelper.GetConfigurationFromFile(ConfigFile);
-            var config = new Config(configuration);
 
             var services = new ServiceCollection();
+            services.AddApplicationConfig(configuration);
 
             _logger = BuildLogger(configuration);
 
@@ -32,7 +32,6 @@ namespace Arc4u.Standard.UnitTest.Infrastructure
 
             var container = new ComponentModelContainer(services).InitializeFromConfig(configuration);
             container.RegisterInstance(configuration);
-            container.RegisterInstance(config);
 
             AddToContainer(container, configuration);
 
@@ -68,7 +67,7 @@ namespace Arc4u.Standard.UnitTest.Infrastructure
 
             authorization.AllOperations.Add(new Operation { ID = 1, Name = "AccessApplication" });
 
-            return new AppPrincipal(authorization, new GenericIdentity("TestUser"), "S-1-9-5-100") { ActivityID = Guid.NewGuid() };
+            return new AppPrincipal(authorization, new GenericIdentity("TestUser"), "S-1-9-5-100") { ActivityID = Guid.NewGuid().ToString() };
 
         }
 

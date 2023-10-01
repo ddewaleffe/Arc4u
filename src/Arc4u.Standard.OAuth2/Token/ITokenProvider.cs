@@ -1,11 +1,11 @@
-﻿using System.Threading.Tasks;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Arc4u.OAuth2.Token
+namespace Arc4u.OAuth2.Token;
+
+public interface ITokenProvider
 {
-    public interface ITokenProvider
-    {
-        Task<TokenInfo> GetTokenAsync(IKeyValueSettings settings, object platformParameters);
+    Task<TokenInfo> GetTokenAsync(IKeyValueSettings settings, object platformParameters);
 
-        void SignOut(IKeyValueSettings settings);
-    }
+    ValueTask SignOutAsync(IKeyValueSettings settings, CancellationToken cancellationToken);
 }

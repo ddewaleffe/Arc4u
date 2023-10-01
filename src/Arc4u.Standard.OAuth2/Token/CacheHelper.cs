@@ -1,52 +1,58 @@
-﻿using Arc4u.Caching;
+using Arc4u.Caching;
 using Arc4u.Dependency.Attribute;
 using Arc4u.Diagnostics;
+using Arc4u.OAuth2.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 
-namespace Arc4u.OAuth2.Token
+namespace Arc4u.OAuth2.Token;
+
+[Export(typeof(ICacheHelper)), Shared]
+public class CacheHelper : ICacheHelper
 {
-    [Export, Shared]
-    public class CacheHelper
+    public CacheHelper(ICacheContext cacheContext, ILogger<CacheHelper> logger, IOptions<TokenCacheOptions> options)
     {
-        public CacheHelper(CacheContext cacheContext, ILogger logger)
+        _cacheContext = cacheContext;
+        _logger = logger;
+        _tokenCacheOptions = options.Value;
+
+        try
         {
-            try
-            {
-                _cacheContext = cacheContext;
-                _logger = logger;
-                _cache = GetCacheFromConfig();
-            }
-            catch (Exception ex)
-            {
-                logger.Technical().From<CacheHelper>().Exception(ex).Log();
-                logger.Technical().From<CacheHelper>().System("Use the default cache!").Log();
+            _cache = GetCacheFromConfig();
+        }
+        catch (Exception ex)
+        {
+            logger.Technical().Exception(ex).Log();
+            logger.Technical().System("Use the default cache!").Log();
 
-                _cache = cacheContext.Default;
-            }
-
+            _cache = cacheContext.Default;
         }
 
-        private readonly CacheContext _cacheContext;
-        private readonly ILogger _logger;
-        /// return the cache based on:
-        /// 1) a cache exists with the Principal.CacheName
-        /// 2) default.
-        private ICache GetCacheFromConfig()
-        {
-            var cacheName = _cacheContext.Principal?.CacheName;
-
-            if (!String.IsNullOrWhiteSpace(cacheName) && _cacheContext.Exist(cacheName))
-            {
-                _logger.Technical().From<CacheHelper>().System($"The Owin token cache is {cacheName}.").Log();
-                return _cacheContext[cacheName];
-            }
-
-            return _cacheContext.Default;
-        }
-
-        private readonly ICache _cache;
-
-        public ICache GetCache() => _cache;
     }
+
+    private readonly ICacheContext _cacheContext;
+    private readonly ILogger<CacheHelper> _logger;
+    private readonly TokenCacheOptions _tokenCacheOptions;
+
+    /// return the cache based on:
+    /// 1) a cache exists with the Principal.CacheName
+    /// 2) default.
+    private ICache GetCacheFromConfig()
+    {
+        var cacheName = _tokenCacheOptions.CacheName;
+
+        if (!string.IsNullOrWhiteSpace(cacheName) && _cacheContext.Exist(cacheName))
+        {
+            _logger.Technical().System($"The token cache is {cacheName}.").Log();
+
+            return _cacheContext[cacheName];
+        }
+
+        return _cacheContext.Default;
+    }
+
+    private readonly ICache _cache;
+
+    public ICache GetCache() => _cache;
 }

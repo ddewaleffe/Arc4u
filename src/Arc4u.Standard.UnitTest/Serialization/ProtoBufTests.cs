@@ -1,11 +1,12 @@
-﻿using Arc4u.Serializer;
+using Arc4u.Serializer;
 using FluentAssertions;
 using System;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Arc4u.Standard.UnitTest.Serialization
+namespace Arc4u.UnitTest.Serialization
 {
+    [Trait("Category", "CI")]
     public class ProtoBufTests
     {
 

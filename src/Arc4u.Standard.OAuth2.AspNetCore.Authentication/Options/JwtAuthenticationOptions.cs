@@ -1,16 +1,18 @@
-﻿using Arc4u.OAuth2.Events;
 using System;
 using System.Security.Cryptography.X509Certificates;
+using Arc4u.OAuth2.Configuration;
+using Arc4u.OAuth2.Events;
 
 namespace Arc4u.OAuth2.Options;
-
 public class JwtAuthenticationOptions
 {
-    public IKeyValueSettings OAuth2Settings { get; set; }
+    public AuthorityOptions DefaultAuthority { get; set; }
+    public Action<OAuth2SettingsOption> OAuth2SettingsOptions { get; set; }
+    public Action<ClaimsIdentifierOption> ClaimsIdentifierOptions { get; set; }
 
-    public string MetadataAddress { get; set; }
+    public string OAuth2SettingsKey { get; set; } = Constants.OAuth2OptionsName;
 
-    public bool ValidateAuthority { get; set; }
+     public bool ValidateAuthority { get; set; } = true;
 
     public Type JwtBearerEventsType { get; set; } = typeof(StandardBearerEvents);
 

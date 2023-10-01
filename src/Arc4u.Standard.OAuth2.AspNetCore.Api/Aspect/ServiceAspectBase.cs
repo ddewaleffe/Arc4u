@@ -1,4 +1,4 @@
-﻿using Arc4u.Diagnostics;
+using Arc4u.Diagnostics;
 using Arc4u.ServiceModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +19,7 @@ namespace Arc4u.OAuth2.Aspect
     /// Handle AppException or Exception and return a Bad RequestMessage.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
+    [Obsolete("Use ManageExceptionsFilter and SetCultureActionFilter instead.")]
     public abstract class ServiceAspectBase : ActionFilterAttribute, IAsyncAuthorizationFilter, IExceptionFilter
     {
         /// <summary>
@@ -64,7 +65,7 @@ namespace Arc4u.OAuth2.Aspect
                 return Task.CompletedTask;
             }
 
-            context.Result = new UnauthorizedResult();
+            context.Result = new ForbidResult();
 
             return Task.CompletedTask;
         }

@@ -1,5 +1,4 @@
-using System.Security.Cryptography.X509Certificates;
-using Arc4u.Security;
+using System.Diagnostics.CodeAnalysis;
 using Arc4u.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 
@@ -18,23 +17,15 @@ public class SecretConfigurationCertificateProvider : ConfigurationProvider
     /// <param name="secretSectionName">Is used to identify the section, coming from the previous providers defined, to read the configuration needed to identify the certificate.</param>
     /// <param name="certificate">An optional parameter, where the user of the class will inject by itself the certificate to use. In this case the secretSectionName parameter is not considered.</param>
     /// <param name="configurationRoot">The <see cref="IConfigurationRoot"/>.</param>
-    public SecretConfigurationCertificateProvider(string prefix, string secretSectionName, X509Certificate2? certificate, IConfigurationRoot configurationRoot)
+    public SecretConfigurationCertificateProvider([DisallowNull] SecretCertificateOptions options, IConfigurationRoot configurationRoot)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
+        _options = options;
         _configurationRoot = configurationRoot;
-        _prefix = prefix;
-        _secretSectionName = secretSectionName;
-        _certificate = certificate;
     }
 
-    private readonly string _prefix;
-    private readonly string _secretSectionName;
-    private X509Certificate2? _certificate;
-
-    public record CertInfoFilePath {
-        public string Cert { get; init; }
-        public string Key { get; init; }
-    }
-
+    private readonly SecretCertificateOptions _options;
     private readonly IConfigurationRoot _configurationRoot;
 
     /// <summary>
@@ -51,49 +42,22 @@ public class SecretConfigurationCertificateProvider : ConfigurationProvider
 
         var tempRoot = new ConfigurationRoot(new List<IConfigurationProvider>(_configurationRoot.Providers));
 
-        if (_certificate is null)
+        _options.Certificate ??= _options.CertificateLoader?.FindCertificate(tempRoot, _options.SecretSectionName);
+
+        if (_options.Certificate is null || _options.Prefix is null)
         {
-            var certSectionPath = $"{_secretSectionName}:CertificateStore";
-            var certificate = tempRoot.GetSection(certSectionPath).Get<CertificateInfo>();
-
-            // For this configuration, no decryption exists. Simply skip this provider.
-            if (certificate is null)
-            {
-                // Do we have pem files?
-                certSectionPath = $"{_secretSectionName}:File";
-                if (tempRoot.GetSection(certSectionPath).Exists())
-                {
-                    var cert = tempRoot.GetSection(certSectionPath).Get<CertInfoFilePath>();
-
-                    if (cert is not null)
-                    {
-                        _certificate = X509Certificate2.CreateFromPemFile(cert.Cert, cert.Key);
-                    }
-                }
-            }
-            else
-            {
-                // The FindCertificate(tempRoot, certificate) is not used because the method throws an exception if no section is defined!
-                _certificate = Certificate.FindCertificate(certificate);
-            }
-
-            if (_certificate is null)
-            {
-                Data = data;
-                return;
-            }
-
-
+            Data = data;
+            return;
         }
 
         // Parse the temproot Data collection of each provider
         foreach (var item in tempRoot.AsEnumerable())
         {
-            if (item.Value is not null && item.Value.StartsWith(_prefix))
+            if (item.Value is not null && item.Value.StartsWith(_options.Prefix))
             {
-                var cypher = item.Value.Substring(_prefix.Length);
+                var cypher = item.Value.Substring(_options.Prefix.Length);
 
-                data.Add(item.Key, _certificate.Decrypt(cypher));
+                data.Add(item.Key, _options.Certificate.Decrypt(cypher));
             }
         }
 

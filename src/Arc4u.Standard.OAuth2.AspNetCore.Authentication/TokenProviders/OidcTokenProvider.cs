@@ -1,17 +1,18 @@
-﻿using Arc4u.Dependency.Attribute;
-using Arc4u.OAuth2.Token;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Arc4u.Dependency.Attribute;
 using Arc4u.OAuth2.Options;
+using Arc4u.OAuth2.Token;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Threading.Tasks;
 
 namespace Arc4u.OAuth2.TokenProviders;
 
 [Export(OidcTokenProvider.ProviderName, typeof(ITokenProvider))]
 public class OidcTokenProvider : ITokenProvider
 {
-    const string ProviderName = "Oidc";
+    public const string ProviderName = "Oidc";
 
     public OidcTokenProvider(ILogger<OidcTokenProvider> logger, TokenRefreshInfo tokenRefreshInfo, IOptions<OidcAuthenticationOptions> oidcOptions, ITokenRefreshProvider refreshTokenProvider)
     {
@@ -36,17 +37,19 @@ public class OidcTokenProvider : ITokenProvider
     /// <returns><see cref="TokenInfo"/></returns>
     public async Task<TokenInfo> GetTokenAsync(IKeyValueSettings settings, object platformParameters)
     {
-        ArgumentNullException.ThrowIfNull(settings, nameof(settings));
+        ArgumentNullException.ThrowIfNull(settings);
 
         var timeRemaining = _tokenRefreshInfo.AccessToken.ExpiresOnUtc.Subtract(DateTime.UtcNow);
 
         if (timeRemaining > _oidcOptions.ForceRefreshTimeoutTimeSpan)
+        {
             return _tokenRefreshInfo.AccessToken;
+        }
 
-        return await _refreshTokenProvider.GetTokenAsync(settings, null);
+        return await _refreshTokenProvider.GetTokenAsync(settings, null).ConfigureAwait(false);
     }
 
-    public void SignOut(IKeyValueSettings settings)
+    public ValueTask SignOutAsync(IKeyValueSettings settings, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

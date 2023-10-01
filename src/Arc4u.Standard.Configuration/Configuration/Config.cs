@@ -1,25 +1,12 @@
-﻿using Microsoft.Extensions.Configuration;
+namespace Arc4u.Configuration;
 
-namespace Arc4u.Configuration
+public class ApplicationConfig
 {
-    public class Config
-    {
-        public Config()
-        {
-            Environment = new Environment();
-        }
+    /// <summary>
+    /// Name used to identify the application when used externally other than logging!
+    /// Cache or authorization, etc...
+    /// </summary>
+    public string ApplicationName { get; set; }
 
-        public Config(IConfiguration configuration)
-        {
-            configuration.Bind("Application.Configuration", this);
-        }
-
-        /// <summary>
-        /// Name used to dentify the application when used externally other than logging!
-        /// Cache or authorization, etc...
-        /// </summary>
-        public string ApplicationName { get; set; }
-
-        public Environment Environment { get; set; }
-    }
+    public Environment Environment { get; set; } = new Environment();
 }
