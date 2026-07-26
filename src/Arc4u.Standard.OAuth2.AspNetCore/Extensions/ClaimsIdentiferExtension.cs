@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using Arc4u.IdentityModel.Claims;
 using Arc4u.OAuth2.Configuration;
@@ -6,19 +5,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Arc4u.OAuth2.Extensions;
-public static class ClaimsIdentiferExtension
+public static class ClaimsidentifierExtension
 {
     public static void AddClaimsIdentifier(this IServiceCollection services, Action<ClaimsIdentifierOption> options)
     {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         services.Configure<ClaimsIdentifierOption>(options);
     }
 
-    public static void AddClaimsIdentifier(this IServiceCollection services, IConfiguration configuration, [DisallowNull] string sectionName = "Authentication:ClaimsIdentifer")
+    public static void AddClaimsIdentifier(this IServiceCollection services, IConfiguration configuration, [DisallowNull] string sectionName = "Authentication:ClaimsIdentifier")
     {
         AddClaimsIdentifier(services, PrepareAction(configuration, sectionName));
     }
@@ -34,7 +30,7 @@ public static class ClaimsIdentiferExtension
 
         // Standard values used to identify a user.
         var values = new ClaimsIdentifierOption();
-        values.AddRange(new[] { ClaimTypes.ObjectIdentifier, ClaimTypes.OID});
+        values.AddRange(new[] { ClaimTypes.ObjectIdentifier, ClaimTypes.OID });
 
         if (section.Exists())
         {

@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using Arc4u.Configuration.Sql;
 using Arc4u.Dependency;
@@ -15,7 +14,7 @@ namespace Arc4u.Caching.Sql;
 /// See Documentation how to create a database here: https://docs.microsoft.com/en-us/aspnet/core/performance/caching/distributed?view=aspnetcore-3.0
 /// </summary>
 [Export("Sql", typeof(ICache))]
-public class SqlCache : BaseDistributeCache, ICache
+public class SqlCache : BaseDistributeCache<SqlCache>, ICache
 {
     private string? Name { get; set; }
 
@@ -25,7 +24,7 @@ public class SqlCache : BaseDistributeCache, ICache
     /// </summary>
     private readonly IOptionsMonitor<SqlCacheOption> _options;
 
-    public SqlCache(ILogger<SqlCache> logger, IContainerResolve container, IOptionsMonitor<SqlCacheOption> options) : base(container)
+    public SqlCache(ILogger<SqlCache> logger, IContainerResolve container, IOptionsMonitor<SqlCacheOption> options) : base(logger, container)
     {
         _logger = logger;
         _options = options;
@@ -33,14 +32,11 @@ public class SqlCache : BaseDistributeCache, ICache
 
     public override void Initialize([DisallowNull] string store)
     {
-#if NET7_0_OR_GREATER
-        ArgumentException.ThrowIfNullOrEmpty(store);
-#else
         if (string.IsNullOrEmpty(store))
         {
-            throw new ArgumentException("The value cannot be an empty string.", nameof(store));
+            NotInitializedReason = "When initializing the Sql cache, the value of the store cannot be an empty string.";
+            throw new ArgumentException(NotInitializedReason, nameof(store));
         }
-#endif
 
         lock (_lock)
         {
@@ -50,31 +46,56 @@ public class SqlCache : BaseDistributeCache, ICache
                 return;
             }
 
-            Name = store;
-
-            var config = _options.Get(store);
-
-            var option = new SqlServerCacheOptions
+            try
             {
-                ConnectionString = config.ConnectionString,
-                TableName = config.TableName,
-                SchemaName = config.SchemaName
-            };
+                Name = store;
 
-            DistributeCache = new SqlServerCache(option);
+                var config = _options.Get(store);
 
-            if (!Container.TryResolve<IObjectSerialization>(config.SerializerName, out var serializerFactory))
-            {
-                SerializerFactory = Container.Resolve<IObjectSerialization>();
+                var option = new SqlServerCacheOptions
+                {
+                    ConnectionString = config.ConnectionString,
+                    TableName = config.TableName,
+                    SchemaName = config.SchemaName
+                };
+
+                DistributeCache = new SqlServerCache(option);
+
+                if (!string.IsNullOrWhiteSpace(config.SerializerName))
+                {
+                    IsInitialized = Container.TryResolve<IObjectSerialization>(config.SerializerName!, out var serializerFactory);
+                    if (IsInitialized)
+                    {
+                        SerializerFactory = serializerFactory!;
+                    }
+                }
+
+                if (!IsInitialized)
+                {
+                    IsInitialized = Container.TryResolve<IObjectSerialization>(out var serializerFactory);
+                    if (IsInitialized)
+                    {
+                        SerializerFactory = serializerFactory!;
+                    }
+                }
+
+                if (!IsInitialized)
+                {
+                    NotInitializedReason = $"Sql Cache {store} is not initialized. An IObjectSerialization instance cannot be resolved via the Ioc.";
+
+                    _logger.Technical().LogError(NotInitializedReason);
+
+                    return;
+                }
+
+                _logger.Technical().System($"Sql Cache {store} is initialized.").Log();
             }
-            else
+            catch (Exception ex)
             {
-                SerializerFactory = serializerFactory;
+                NotInitializedReason = $"Sql Cache {store} is not initialized. With exception: {ex.Message}";
+                throw;
             }
-
-            IsInitialized = true;
-            _logger.Technical().System($"Sql Cache {store} is initialized.").Log();
         }
     }
-    public override string ToString() => Name ?? throw new NullReferenceException();
+    public override string ToString() => Name ?? throw new InvalidOperationException("The 'Name' property must not be null.");
 }

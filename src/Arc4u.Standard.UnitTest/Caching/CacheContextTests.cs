@@ -1,22 +1,20 @@
-using AutoFixture.AutoMoq;
-using AutoFixture;
-using Xunit;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Generic;
 using System.Globalization;
-using System;
-using FluentAssertions;
-using Arc4u.Caching.Memory;
-using Microsoft.Extensions.Options;
 using Arc4u.Caching;
+using Arc4u.Caching.Memory;
+using Arc4u.Configuration.Dapr;
 using Arc4u.Configuration.Memory;
 using Arc4u.Configuration.Redis;
 using Arc4u.Configuration.Sql;
-using System.IO;
-using Moq;
 using Arc4u.Dependency;
 using Arc4u.Serializer;
+using AutoFixture;
+using AutoFixture.AutoMoq;
+using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Moq;
+using Xunit;
 
 namespace Arc4u.UnitTest.Caching;
 
@@ -57,7 +55,7 @@ public class CacheContextTests
                              ["Caching:Caches:0:Settings:SerializerName"] = memorySettings.SerializerName,
                          }).Build();
 
-        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
+        var configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
 
         var bindedCaching = new Configuration.Caching();
         configuration.GetSection("Caching").Bind(bindedCaching);
@@ -97,6 +95,7 @@ public class CacheContextTests
         var memorySettings = _fixture.Build<MemoryCacheOption>().With(m => m.CompactionPercentage, 0.2).Create();
         var redisSettings = _fixture.Create<RedisCacheOption>();
         var sqlSettings = _fixture.Create<SqlCacheOption>();
+        var daprSettings = _fixture.Create<DaprCacheOption>();
 
         IServiceCollection services = new ServiceCollection();
 
@@ -130,6 +129,7 @@ public class CacheContextTests
 
                      ["Caching:Caches:3:Name"] = cache.Caches[3].Name,
                      ["Caching:Caches:3:Kind"] = cache.Caches[3].Kind,
+                     ["Caching:Caches:3:Settings:Name"] = daprSettings.Name,
                      ["Caching:Caches:3:IsAutoStart"] = cache.Caches[3].IsAutoStart.ToString(),
 
                  }).Build();
@@ -145,24 +145,27 @@ public class CacheContextTests
         var sutRedis = serviceProvider.GetService<IOptionsMonitor<RedisCacheOption>>()?.Get("Performance");
         var sutSql = serviceProvider.GetService<IOptionsMonitor<SqlCacheOption>>()?.Get("Compromize");
         var sutMemory = serviceProvider.GetService<IOptionsMonitor<MemoryCacheOption>>()?.Get("Volatile");
-
+        var sutDapr = serviceProvider.GetService<IOptionsMonitor<DaprCacheOption>>()?.Get("Diversisty");
         // assert
         // redis
         sutRedis.Should().NotBeNull();
-        sutRedis.InstanceName.Should().Be(redisSettings.InstanceName);
+        sutRedis!.InstanceName.Should().Be(redisSettings.InstanceName);
         sutRedis.ConnectionString.Should().Be(redisSettings.ConnectionString);
         sutRedis.SerializerName.Should().Be(redisSettings.SerializerName);
         // sql
 
-        sutSql.ConnectionString.Should().Be(sqlSettings.ConnectionString);
+        sutSql!.ConnectionString.Should().Be(sqlSettings.ConnectionString);
         sutSql.TableName.Should().Be(sqlSettings.TableName);
         sutSql.SchemaName.Should().Be(sqlSettings.SchemaName);
         sutSql.SerializerName.Should().Be(sqlSettings.SerializerName);
         // memory
         sutMemory.Should().NotBeNull();
-        sutMemory.SerializerName.Should().Be(memorySettings.SerializerName);
+        sutMemory!.SerializerName.Should().Be(memorySettings.SerializerName);
         sutMemory.SizeLimitInMB.Should().Be(memorySettings.SizeLimitInMB * 1024 * 1024);
         sutMemory.CompactionPercentage.Should().Be(memorySettings.CompactionPercentage);
+        // dapr
+        sutDapr.Should().NotBeNull();
+        sutDapr!.Name.Should().Be(daprSettings.Name);
 
     }
 
@@ -204,9 +207,10 @@ public class CacheContextTests
         mockIOptions.Setup(m => m.Get("Volatile")).Returns(serviceProvider.GetService<IOptionsMonitor<MemoryCacheOption>>()!.Get("Volatile"));
 
         var mockIContainer = _fixture.Freeze<Mock<IContainerResolve>>();
-        mockIContainer.Setup(m => m.Resolve<IObjectSerialization>()).Returns(new JsonSerialization());
+        IObjectSerialization? serializer = new JsonSerialization();
+        mockIContainer.Setup(m => m.TryResolve<IObjectSerialization>(out serializer)).Returns(true);
 
-        ICache mockCache = _fixture.Create<MemoryCache>();
+        ICache? mockCache = _fixture.Create<MemoryCache>();
         mockIContainer.Setup(m => m.TryResolve<ICache>(CacheContext.Memory, out mockCache)).Returns(true);
 
         _fixture.Inject<IConfiguration>(configuration);
@@ -218,7 +222,6 @@ public class CacheContextTests
         cacheInstance.Put("key", "value");
 
         cacheInstance.Get<string>("key").Should().Be("value");
-
 
     }
 

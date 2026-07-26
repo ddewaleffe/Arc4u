@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,7 +7,7 @@ namespace Arc4u.Configuration;
 public static class ConfigurationSettingsExtension
 {
     /// <summary>
-    /// Register a key/value collection with IOption model.
+    /// Register a key/value collection with IOption model, only taking the properties that map to strings.
     /// <param name="services">The service collection <see cref="IServiceCollection"/></param>
     /// <param name="name">The name to get the back the DIctionary.</param>
     /// <param name="configuration"><see cref="IConfiguration"/> to read the settings.</param>
@@ -18,6 +16,11 @@ public static class ConfigurationSettingsExtension
     /// <exception cref="ConfigurationException"></exception>
     public static IKeyValueSettings ConfigureSettings(this IServiceCollection services, string name, IConfiguration configuration, string sectionName)
     {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(sectionName);
+#else
         // Check if the `name` parameter is null or empty.
         if (string.IsNullOrEmpty(name))
         {
@@ -35,7 +38,7 @@ public static class ConfigurationSettingsExtension
         {
             throw new ArgumentNullException(nameof(configuration));
         }
-
+#endif
         // Get the specified `sectionName` from the `configuration` parameter.
         var section = configuration.GetSection(sectionName);
 
@@ -47,13 +50,13 @@ public static class ConfigurationSettingsExtension
         }
 
         // Get a `Dictionary<string, string>` from the `section`.
-        var dic = section.Get<Dictionary<string, string>>() ?? throw new ConfigurationException($"Section {sectionName} is not a Dictionary<string,string>.");
+        var dic = section.GetChildren()?.ToDictionary(x => x.Key, x => x.Value!) ?? throw new ArgumentException($"Section {sectionName} doesn't contain a usable string dictionary", nameof(sectionName));
 
         // Define a local method `options` that takes a `Dictionary<string, string>` parameter `o` and adds each key-value pair
         // from the retrieved dictionary `dic` to it.
         void options(SimpleKeyValueSettings o)
         {
-            foreach (var kv in dic!)
+            foreach (var kv in dic)
             {
                 o.Add(kv.Key, kv.Value);
             }

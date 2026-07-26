@@ -17,14 +17,16 @@ public class SecretRijndaelConfigurationProvider : ConfigurationProvider
     /// <param name="secretSectionName">Is used to identify the section, coming from the previous providers defined, to read the configuration needed to identify the certificate.</param>
     /// <param name="RijndaelConfig">An optional parameter, where the user of the class will inject by itself the Rijndael key and IV to use. In this case the secretSectionName parameter is not considered.</param>
     /// <param name="configurationRoot">The <see cref="IConfigurationRoot"/>.</param>
-    public SecretRijndaelConfigurationProvider(SecretRijndaelOptions options, IConfigurationRoot configurationRoot)
+    public SecretRijndaelConfigurationProvider(SecretRijndaelOptions options, IList<IConfigurationSource> sources)
     {
-        _configurationRoot = configurationRoot;
+        ArgumentNullException.ThrowIfNull(options);
+
         _rijndaelOptions = options;
+        _sources = sources;
     }
 
+    private readonly IList<IConfigurationSource> _sources;
     private readonly SecretRijndaelOptions _rijndaelOptions;
-    private readonly IConfigurationRoot _configurationRoot;
 
     /// <summary>
     /// The Load method does the different steps.
@@ -38,7 +40,12 @@ public class SecretRijndaelConfigurationProvider : ConfigurationProvider
     {
         Dictionary<string, string?> data = new(StringComparer.OrdinalIgnoreCase);
 
-        var tempRoot = new ConfigurationRoot(new List<IConfigurationProvider>(_configurationRoot.Providers));
+        var tempBuilder = new ConfigurationBuilder();
+        foreach (var source in _sources)
+        {
+            tempBuilder.Add(source);
+        }
+        var tempRoot = tempBuilder.Build();
 
         if (_rijndaelOptions.RijnDael is null)
         {
@@ -61,7 +68,7 @@ public class SecretRijndaelConfigurationProvider : ConfigurationProvider
             {
                 var cypher = item.Value.Substring(_rijndaelOptions.Prefix.Length);
 
-                data.Add(item.Key, CypherCodec.DecodeCypherString(cypher, rijndaelkeys.Item1, rijndaelkeys.Item2));
+                data.Add(item.Key, CypherCodec.DecodeCypherstring(cypher, rijndaelkeys.Item1, rijndaelkeys.Item2));
             }
         }
 

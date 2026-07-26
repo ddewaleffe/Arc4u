@@ -1,5 +1,3 @@
-using System;
-using Arc4u.Dependency;
 using Arc4u.Dependency.Attribute;
 using Arc4u.Dependency.ComponentModel;
 using FluentAssertions;
@@ -61,13 +59,13 @@ public class AttributeInspectorTests
 }
 
 [Export(typeof(ITransientObject))]
-public class TransientObject : ITransientObject {}
-public interface ITransientObject {}
+public class TransientObject : ITransientObject { }
+public interface ITransientObject { }
 
 [Export(typeof(IScopedObject)), Scoped]
-public class ScopedObject : IScopedObject {}
-public interface IScopedObject {}
+public class ScopedObject : IScopedObject { }
+public interface IScopedObject { }
 
 [Export(typeof(ISingletonObject)), Shared]
-public class SingletonObject : ISingletonObject {}
-public interface ISingletonObject {}
+public class SingletonObject : ISingletonObject { }
+public interface ISingletonObject { }

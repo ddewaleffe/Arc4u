@@ -1,6 +1,4 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Arc4u.Configuration;
 using Arc4u.OAuth2.Options;
 using Arc4u.OAuth2.Token;
@@ -22,7 +20,8 @@ public static class OpenIdSettingsExtension
             throw new MissingFieldException($"ProviderId field is not defined.");
         }
 
-        if (!validate.Audiences.Any())
+        // if we don't have to validate the audience, we don't need to have any.
+        if (validate.ValidateAudience && !validate.Audiences.Any())
         {
             throw new MissingFieldException($"Audiences field is not defined.");
         }
@@ -59,8 +58,11 @@ public static class OpenIdSettingsExtension
 
             keyOptions.Add(TokenKeys.ClientIdKey, validate.ClientId);
             keyOptions.Add(TokenKeys.ClientSecret, validate.ClientSecret);
-            keyOptions.Add(TokenKeys.Audiences, string.Join(' ', validate.Audiences));
-            keyOptions.Add(TokenKeys.Scope, string.Join(' ',validate.Scopes));
+            if (validate.ValidateAudience)
+            {
+                keyOptions.Add(TokenKeys.Audiences, string.Join(' ', validate.Audiences));
+            }
+            keyOptions.Add(TokenKeys.Scope, string.Join(' ', validate.Scopes));
         }
 
         services.Configure<SimpleKeyValueSettings>(sectionKey, SettingsFiller);
@@ -81,15 +83,8 @@ public static class OpenIdSettingsExtension
 
     internal static Action<OpenIdSettingsOption> PrepareAction(IConfiguration configuration, [DisallowNull] string sectionName)
     {
-        if (string.IsNullOrEmpty(sectionName))
-        {
-            throw new ArgumentNullException(nameof(sectionName));
-        }
-
-        if (configuration is null)
-        {
-            throw new ArgumentNullException(nameof(configuration));
-        }
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(sectionName);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         var section = configuration.GetSection(sectionName) ?? throw new NullReferenceException($"No section exists with name {sectionName}");
 
@@ -104,6 +99,7 @@ public static class OpenIdSettingsExtension
             option.Scopes = settings.Scopes;
             option.AuthenticationType = settings.AuthenticationType;
             option.ProviderId = settings.ProviderId;
+            option.ValidateAudience = settings.ValidateAudience;
         }
 
         return OptionFiller;

@@ -1,16 +1,15 @@
-using AutoFixture.AutoMoq;
-using AutoFixture;
 using Arc4u.Caching.Redis;
+using Arc4u.Configuration.Redis;
+using Arc4u.Dependency;
+using Arc4u.Serializer;
+using AutoFixture;
+using AutoFixture.AutoMoq;
+using FluentAssertions;
 using Microsoft.Extensions.Configuration;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using FluentAssertions;
-using Xunit;
-using Arc4u.Serializer;
-using Arc4u.Dependency;
 using Moq;
-using Arc4u.Configuration.Redis;
+using Xunit;
 
 namespace Arc4u.UnitTest.Caching;
 
@@ -44,7 +43,7 @@ public class RedisTests
                                      ["Option2:SerializerName"] = option2.SerializerName,
                                  }).Build();
 
-        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
+        var configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
 
         IServiceCollection services = new ServiceCollection();
 
@@ -84,7 +83,7 @@ public class RedisTests
                                      ["Option1:SerializerName"] = option1.SerializerName,
                                  }).Build();
 
-        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
+        var configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
 
         IServiceCollection services = new ServiceCollection();
 
@@ -178,11 +177,11 @@ public class RedisTests
                              .AddInMemoryCollection(
                                  new Dictionary<string, string?>
                                  {
-                                     ["Store:ConnectionString"] = "127.0.0.1:6379,abortConnect=false,connectTimeout=30,connectRetry=5,ssl=false,DefaultDatabase=4",
+                                     ["Store:ConnectionString"] = "127.0.*.1:6379,abortConnect=false,connectTimeout=30,connectRetry=5,ssl=false,DefaultDatabase=4",
                                      ["Store:InstanceName"] = "db1"
                                  }).Build();
 
-        IConfiguration configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
+        var configuration = new ConfigurationRoot(new List<IConfigurationProvider>(config.Providers));
 
         IServiceCollection services = new ServiceCollection();
 
@@ -193,7 +192,8 @@ public class RedisTests
         var serviceProvider = services.BuildServiceProvider();
 
         var mockIContainer = _fixture.Freeze<Mock<IContainerResolve>>();
-        mockIContainer.Setup(m => m.Resolve<IObjectSerialization>()).Returns(serviceProvider.GetService<IObjectSerialization>()!);
+        var serializer = serviceProvider.GetRequiredService<IObjectSerialization>();
+        mockIContainer.Setup(m => m.TryResolve<IObjectSerialization>(out serializer)).Returns(true);
 
         var mockIOptions = _fixture.Freeze<Mock<IOptionsMonitor<RedisCacheOption>>>();
         mockIOptions.Setup(m => m.Get("Store")).Returns(serviceProvider.GetService<IOptionsMonitor<RedisCacheOption>>()!.Get("Store"));
